@@ -4087,7 +4087,7 @@ index 982953af..f8e887fa 100644
 +    def->sidetext = L("mm");
 +    def->min = 0;
 +    // Upper limit of the tested hotend (user decision 2026-10-29).
-+    def->max = 5;
++    def->max = 30;
 +    def->mode = comAdvanced;
 +    // Bambu Lab A1 mini: 5 mm height span.
 +    def->set_default_value(new ConfigOptionFloat(5.0));
