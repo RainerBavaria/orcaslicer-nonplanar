@@ -35,8 +35,17 @@ jobs:
         working-directory: orca
         run: git apply --whitespace=nowarn ../np/orca-nonplanar.patch
 
+      # CMake 4.x (Homebrew on the runner) breaks the Boost configure step
+      # (source_group error in libs/locale); same pin as the Windows build.
+      - name: CMake 3.31
+        uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: "~3.31.0"
+
       - name: Tools and Xcode
         run: |
+          which cmake
+          cmake --version
           brew install automake texinfo libtool gettext || true
           ls -d /Applications/Xcode_*.app
           sudo xcode-select -s /Applications/Xcode_16.4.app || echo "Xcode 16.4 not found, using the default Xcode"
