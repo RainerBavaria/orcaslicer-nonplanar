@@ -50,6 +50,13 @@ jobs:
           ls -d /Applications/Xcode_*.app
           sudo xcode-select -s /Applications/Xcode_16.4.app || echo "Xcode 16.4 not found, using the default Xcode"
           xcodebuild -version
+          # CMake 3.31 resolves the compiler to the bare toolchain clang, which
+          # finds no SDK on its own (GMP: "could not find a working compiler").
+          # Use the xcrun shims and pass the SDK explicitly.
+          echo "SDKROOT=$(xcrun --sdk macosx --show-sdk-path)" >> "$GITHUB_ENV"
+          echo "CC=/usr/bin/cc" >> "$GITHUB_ENV"
+          echo "CXX=/usr/bin/c++" >> "$GITHUB_ENV"
+          xcrun --sdk macosx --show-sdk-path
           df -h /
 
       - name: Free disk space
