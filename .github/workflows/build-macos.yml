@@ -1,6 +1,6 @@
 # macOS (Apple Silicon) build of OrcaSlicer Nonplanar: upstream OrcaSlicer at the
 # pinned commit + orca-nonplanar.patch, built like OrcaSlicer's own CI
-# (macos-14 runner, Xcode 15.4, build_release_macos.sh with Ninja).
+# (macos-15 runner, Xcode 16.4, build_release_macos.sh with Ninja).
 name: Build macOS
 
 on:
@@ -17,7 +17,7 @@ env:
 
 jobs:
   macos:
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 360
     steps:
       - name: Check out this repository
@@ -38,13 +38,13 @@ jobs:
       - name: Tools and Xcode
         run: |
           brew install automake texinfo libtool gettext || true
-          sudo xcode-select -s /Applications/Xcode_15.4.app
+          ls -d /Applications/Xcode_*.app
+          sudo xcode-select -s /Applications/Xcode_16.4.app || echo "Xcode 16.4 not found, using the default Xcode"
           xcodebuild -version
           df -h /
 
       - name: Free disk space
         run: |
-          sudo find /Applications -maxdepth 1 -type d -name "Xcode_*.app" ! -name "Xcode_15.4.app" -exec rm -rf {} + || true
           sudo rm -rf ~/Library/Developer/CoreSimulator/Caches/* || true
           df -h /
 
