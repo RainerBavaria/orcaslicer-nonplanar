@@ -1,0 +1,90 @@
+# macOS (Apple Silicon) build of OrcaSlicer Nonplanar: upstream OrcaSlicer at the
+# pinned commit + orca-nonplanar.patch, built like OrcaSlicer's own CI
+# (macos-14 runner, Xcode 15.4, build_release_macos.sh with Ninja).
+name: Build macOS
+
+on:
+  workflow_dispatch:
+    inputs:
+      single_job:
+        description: "Build with a single job (slower, use only if the build runs out of memory)"
+        type: boolean
+        default: false
+
+env:
+  ORCA_COMMIT: 8500fcdccaa10b5099ac20d252af3a7c560046f1   # OrcaSlicer v2.4.2
+  ARCH: arm64
+
+jobs:
+  macos:
+    runs-on: macos-14
+    timeout-minutes: 360
+    steps:
+      - name: Check out this repository
+        uses: actions/checkout@v4
+        with:
+          path: np
+
+      - name: Check out OrcaSlicer ${{ env.ORCA_COMMIT }}
+        run: |
+          git clone https://github.com/OrcaSlicer/OrcaSlicer.git orca
+          cd orca
+          git checkout ${{ env.ORCA_COMMIT }}
+
+      - name: Apply the nonplanar patch
+        working-directory: orca
+        run: git apply --whitespace=nowarn ../np/orca-nonplanar.patch
+
+      - name: Tools and Xcode
+        run: |
+          brew install automake texinfo libtool gettext || true
+          sudo xcode-select -s /Applications/Xcode_15.4.app
+          xcodebuild -version
+          df -h /
+
+      - name: Free disk space
+        run: |
+          sudo find /Applications -maxdepth 1 -type d -name "Xcode_*.app" ! -name "Xcode_15.4.app" -exec rm -rf {} + || true
+          sudo rm -rf ~/Library/Developer/CoreSimulator/Caches/* || true
+          df -h /
+
+      - name: Restore cached dependencies
+        id: deps-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: orca/deps/build/arm64/OrcaSlicer_dep
+          key: deps-macos-arm64-${{ env.ORCA_COMMIT }}
+
+      - name: Build dependencies
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        working-directory: orca
+        run: |
+          ./build_release_macos.sh -d -x ${{ inputs.single_job && '-1' || '' }} -a arm64
+          (cd deps/build/arm64 && find . -mindepth 1 -maxdepth 1 ! -name 'OrcaSlicer_dep' -exec rm -rf {} +)
+
+      - name: Save dependencies
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: orca/deps/build/arm64/OrcaSlicer_dep
+          key: deps-macos-arm64-${{ env.ORCA_COMMIT }}
+
+      - name: Build OrcaSlicer Nonplanar
+        working-directory: orca
+        run: ./build_release_macos.sh -s -x ${{ inputs.single_job && '-1' || '' }} -a arm64
+
+      - name: Check linked libraries
+        working-directory: orca/build/arm64/OrcaSlicer
+        run: otool -L OrcaSlicer.app/Contents/MacOS/OrcaSlicer
+
+      - name: Package app
+        working-directory: orca/build/arm64/OrcaSlicer
+        run: |
+          codesign --force --deep -s - OrcaSlicer.app || true
+          ditto -c -k --keepParent OrcaSlicer.app "$GITHUB_WORKSPACE/OrcaSlicer-Nonplanar-macOS-arm64.zip"
+
+      - name: Upload macOS build
+        uses: actions/upload-artifact@v4
+        with:
+          name: OrcaSlicer-Nonplanar-macOS-arm64
+          path: OrcaSlicer-Nonplanar-macOS-arm64.zip
